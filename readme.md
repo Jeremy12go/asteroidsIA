@@ -7,9 +7,9 @@ An AI that learns to play the classic Atari *Asteroids* arcade game through neur
 > IA learning Framework by Jeremi A. & Alexis F. Ported to Python 3 by Francisco Sanchez Arroyo. Based on the original work *Pythentic Asteroids* by Nick Redshaw
 
 > [!IMPORTANT]
-> Install de PyGame library
+> Install de PyGame and Numpy library
 ```bash
-    pip install pygame
+    pip install pygame numpy torch
 ```
 
 ## Play
