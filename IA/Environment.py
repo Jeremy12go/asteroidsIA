@@ -9,13 +9,16 @@ class Environment:
         self.game = Asteroids(False)
         self.game.initialiseGame()
         self.done = False
-        
+
         # Previous ship state to measure movement patterns
         ship = self.game.ship
         self.prev_angle = ship.angle
         self.prev_vx = ship.heading.x
         self.prev_vy = ship.heading.y
         self.straight_frames = 0
+
+        self.last_action = None
+        self.last_reward = 0.0
 
     def reset(self):
         self.game.initialiseGame()
@@ -37,7 +40,7 @@ class Environment:
         reward = self.compute_reward()
 
         # 4. Guardar acción y reward en el HUD debug
-        self.game.last_action = action
+        # self.game.last_action = action
         self.game.last_reward = reward
 
         # 5. Calcular la diferencia angular para visualización
@@ -154,26 +157,34 @@ class Environment:
 
     def compute_reward(self):
         ship = self.game.ship
-        reward = 0.1  # survive reward
+        reward = 0.1  # reward por sobrevivir
 
-        # ---- MOVEMENT REGULARITY ----
+        # ============================
+        # 1) MOVIMIENTO REGULAR / RARO
+        # ============================
+
         angle_change = abs(ship.angle - self.prev_angle)
         dvx = abs(ship.heading.x - self.prev_vx)
         dvy = abs(ship.heading.y - self.prev_vy)
 
+        # --- recto demasiado tiempo ---
         if angle_change < 1.0 and dvx < 0.01 and dvy < 0.01:
             self.straight_frames += 1
         else:
             self.straight_frames = 0
 
         if self.straight_frames > 60:
-            reward -= 0.03
+            reward -= 0.03  # ligera penalización
 
+        # --- movimiento raro (cambios bruscos) ---
         movement_change = angle_change * 0.005 + (dvx + dvy) * 0.5
         if movement_change > 1.0:
-            reward -= movement_change
+            reward -= movement_change  # penalización proporcional
 
-        # ---- SHOOTING & ALIGNMENT ----
+        # ==========================================
+        # 2) CALCULAR ALINEACIÓN ANGULAR REAL (IMPORTANTE)
+        # ==========================================
+
         nearest = self.get_nearest_asteroid(ship.position.x, ship.position.y)
         if nearest:
             dx = nearest.position.x - ship.position.x
@@ -181,40 +192,74 @@ class Environment:
 
             angle_to_asteroid = math.atan2(dy, dx)
             ship_angle_rad = math.radians(ship.angle)
-            angle_diff = abs(angle_to_asteroid - ship_angle_rad)
 
-            # alignment reward
-            alignment = max(0, 1 - min(angle_diff / math.pi, 1))
-            reward += alignment * 0.2
+            # error angular absoluto en [-pi, +pi]
+            angle_diff = abs((angle_to_asteroid - ship_angle_rad + math.pi) % (2*math.pi) - math.pi)
 
-            # shooting reward
-            if ship.bulletShot > 0 and angle_diff < 0.25:
-                reward += 4
+            # normalizar 0..1
+            angle_diff_norm = min(angle_diff / math.pi, 1.0)
 
-            # distance penalty
+            # -------------------------------------------------
+            #  REWARD 2.1: ALINEACIÓN (apuntar bien = recompensa)
+            # -------------------------------------------------
+            reward += (1 - angle_diff_norm) * 0.5    # máx +0.5
+
+            # -------------------------------------------------
+            #  REWARD 2.2: DISPARO BIEN ALINEADO
+            # -------------------------------------------------
+            if self.last_action == 4 and angle_diff_norm < 0.15:
+                reward += 5   # fuerte refuerzo de disparo correcto
+
+            # -------------------------------------------------
+            #  PENALTY 2.3: DISPARO INÚTIL (mal alineado)
+            # -------------------------------------------------
+            if self.last_action == 4 and angle_diff_norm > 0.30:
+                reward -= 3
+
+            # ------------------------------------------
+            # PENALTY 2.4: No alinearse nunca
+            # ------------------------------------------
+            if angle_diff_norm > 0.50:
+                reward -= 0.01
+
+            # ========================
+            # 3) PENALIDAD POR DISTANCIA
+            # ========================
             dist = math.sqrt(dx**2 + dy**2)
-            if dist < 80:
+            if dist < 80:    # demasiado cerca de un asteroide
                 reward -= 0.5
 
-        # asteroid destroyed
+        # ==========================
+        # 4) ASTEROIDES DESTRUIDOS
+        # ==========================
         reward += ship.bulletHit * 20
 
-        # shooting spam penalty
+        # ==========================
+        # 5) PENALIZAR SPAM DE DISPAROS
+        # ==========================
         reward -= ship.bulletShot * 0.2
 
-        # death penalty
+        # ==========================
+        # 6) MUERTE
+        # ==========================
         if self.game.gameState == 'exploding':
             reward -= 40
 
-        # reset counters AFTER using them
-        ship.bulletHit = 0
-        ship.bulletShot = 0
-
+        # ==========================
+        # 7) GUARDAR ESTADO PREVIO
+        # ==========================
         self.prev_angle = ship.angle
         self.prev_vx = ship.heading.x
         self.prev_vy = ship.heading.y
-        
+
+        # ==========================
+        # 8) RESET DE CONTADORES
+        # ==========================
+        ship.bulletHit = 0
+        ship.bulletShot = 0
+
         return reward
+
 
     def get_nearest_asteroid(self, sx, sy):
         if not self.game.rockList:

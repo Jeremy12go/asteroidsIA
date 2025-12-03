@@ -1,5 +1,5 @@
 from Environment import Environment
-from DQN_agent import DQNAgent
+from DQN_agent import DQN_agent
 import numpy as np
 import torch
 
@@ -8,15 +8,18 @@ MAX_STEPS = 2000
 
 INPUT_SIZE = 14
 ACTION_SIZE = 6
-HIDDEN_SIZE = 64
+# HIDDEN_SIZE = 64
 
 env = Environment()
 
-agent = DQNAgent(INPUT_SIZE, ACTION_SIZE, hidden_size=HIDDEN_SIZE)
+agent = DQN_agent(INPUT_SIZE, ACTION_SIZE)
 
 # Cargar modelo si existe
 try:
-    agent.model.load_state_dict(torch.load("best_dqn.pth"))
+    checkpoint = torch.load("dqn_model.pth")
+    agent.model.load_state_dict(checkpoint["model_state"])
+    agent.target_model.load_state_dict(checkpoint["target_state"])
+    agent.epsilon = checkpoint.get("epsilon", 1.0)
     print("Modelo cargado correctamente.")
 except:
     print("No hay modelo previo. Comenzando desde cero.")
@@ -48,5 +51,9 @@ for episode in range(EPISODES):
 
     # guardar mejor modelo
     if episode % 20 == 0:
-        torch.save(agent.model.state_dict(), "best_dqn.pth")
+        torch.save({
+            "model_state": agent.model.state_dict(),
+            "target_state": agent.target_model.state_dict(),
+            "epsilon": agent.epsilon
+        }, "dqn_model.pth")
         print("Modelo guardado.")
