@@ -14,8 +14,7 @@ An AI that learns to play the classic Atari *Asteroids* arcade game through neur
 
 ## Play
 `python asteroids.py`   
-or   
-`python3 asteroids.py`
+
 
 ## Keys
 * `Z` `X` or `Cursor Left Right` rotate

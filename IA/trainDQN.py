@@ -7,8 +7,7 @@ EPISODES = 3000
 MAX_STEPS = 2000
 
 INPUT_SIZE = 14
-ACTION_SIZE = 6
-# HIDDEN_SIZE = 64
+ACTION_SIZE = 5
 
 env = Environment()
 

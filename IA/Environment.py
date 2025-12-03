@@ -153,7 +153,6 @@ class Environment:
         elif action == 2: self.game.ship.increaseThrust()
         elif action == 3: self.game.ship.decreaseThrust()
         elif action == 4: self.game.ship.fireBullet()
-        elif action == 5: None
 
     def compute_reward(self):
         ship = self.game.ship
@@ -168,6 +167,7 @@ class Environment:
         dvy = abs(ship.heading.y - self.prev_vy)
 
         # --- recto demasiado tiempo ---
+        """
         if angle_change < 1.0 and dvx < 0.01 and dvy < 0.01:
             self.straight_frames += 1
         else:
@@ -175,14 +175,15 @@ class Environment:
 
         if self.straight_frames > 60:
             reward -= 0.03  # ligera penalización
-
+        """
         # --- movimiento raro (cambios bruscos) ---
+        """
         movement_change = angle_change * 0.005 + (dvx + dvy) * 0.5
         if movement_change > 1.0:
             reward -= movement_change  # penalización proporcional
-
+        """
         # ==========================================
-        # 2) CALCULAR ALINEACIÓN ANGULAR REAL (IMPORTANTE)
+        # 2) CALCULAR ALINEACIÓN ANGULAR REAL 
         # ==========================================
 
         nearest = self.get_nearest_asteroid(ship.position.x, ship.position.y)
@@ -207,26 +208,26 @@ class Environment:
             # -------------------------------------------------
             #  REWARD 2.2: DISPARO BIEN ALINEADO
             # -------------------------------------------------
-            if self.last_action == 4 and angle_diff_norm < 0.15:
+            if self.last_action == 4 and angle_diff_norm < 0.05:
                 reward += 5   # fuerte refuerzo de disparo correcto
 
             # -------------------------------------------------
             #  PENALTY 2.3: DISPARO INÚTIL (mal alineado)
             # -------------------------------------------------
-            if self.last_action == 4 and angle_diff_norm > 0.30:
+            if self.last_action == 4 and angle_diff_norm > 0.2:
                 reward -= 3
 
             # ------------------------------------------
             # PENALTY 2.4: No alinearse nunca
             # ------------------------------------------
             if angle_diff_norm > 0.50:
-                reward -= 0.01
+                reward -= 0.05
 
             # ========================
             # 3) PENALIDAD POR DISTANCIA
             # ========================
             dist = math.sqrt(dx**2 + dy**2)
-            if dist < 80:    # demasiado cerca de un asteroide
+            if dist < 100:    # demasiado cerca de un asteroide
                 reward -= 0.5
 
         # ==========================

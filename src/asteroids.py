@@ -39,8 +39,6 @@ from .stage import *
 from .badies import *
 from .shooter import *
 from .soundManager import *
-from IA.visualizer_dqn import draw_dqn
-
 
 class Asteroids():
 

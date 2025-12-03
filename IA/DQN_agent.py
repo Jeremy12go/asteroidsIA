@@ -25,12 +25,12 @@ class DQN_agent:
 
         # Replay memory
         self.memory = deque(maxlen=50000)
-        self.batch_size = 64
+        self.batch_size = 128
 
         # Parámetros DQN
         self.gamma = 0.99
         self.epsilon = 0.995
-        self.epsilon_min = 0.05
+        self.epsilon_min = 0.35
         self.epsilon_decay = 0.9995
 
         self.replay = ReplayBuffer()
