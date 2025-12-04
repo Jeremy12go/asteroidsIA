@@ -27,23 +27,22 @@ class Environment:
 
     def step(self, action): # net parameter
         
-        self.game.current_net = None  # no needed for DQN visualization
+        self.game.current_net = None  
         self.game.last_action = action
 
-        # 1. Aplicar acción de la IA (giro, thrust, disparo)
+        # 1. Do action
         self.apply_action(action)
 
-        # 2. Avanzar un frame del juego
+        # 2. Forward frame
         self.game.update_one_frame()
 
-        # 3. Calcular el reward del frame actual
+        # 3. calculate reward to current frame
         reward = self.compute_reward()
 
-        # 4. Guardar acción y reward en el HUD debug
-        # self.game.last_action = action
+        # 4. Save action and reward on HUD debug
         self.game.last_reward = reward
 
-        # 5. Calcular la diferencia angular para visualización
+        # 5. Calculate the angular difference to visualization
         ship = self.game.ship
         nearest = self.get_nearest_asteroid(ship.position.x, ship.position.y)
 
@@ -51,30 +50,25 @@ class Environment:
             dx = nearest.position.x - ship.position.x
             dy = nearest.position.y - ship.position.y
 
-            # a qué ángulo está el asteroide (ángulo matemático estándar)
             angle_to_asteroid = math.atan2(dy, dx)
 
-            # calcular vector de dirección de la nave
             angle_rad = math.radians(ship.angle)
             dir_x = -math.sin(angle_rad)
             dir_y = -math.cos(angle_rad)
 
-            # convertir el vector a un ángulo compatible con atan2
             ship_angle = math.atan2(dir_y, dir_x)
 
-            # diferencia angular mínima
             raw_diff = abs(angle_to_asteroid - ship_angle)
             angle_diff = min(raw_diff, 2*math.pi - raw_diff)
         else:
             angle_diff = 0.0
 
-        # Guardar este valor para dibujarlo en la ventana
         self.game.last_angle_diff = angle_diff
 
-        # 6. Revisar si el episodio terminó
+        # 6. Check if the episode ended
         done = (self.game.gameState == 'exploding')
 
-        # 7. Devolver el estado nuevo
+        # 7. Restore the new state
         state = self.get_state()
         self.game.current_net = None # net value
         self.game.current_state = state
@@ -103,27 +97,23 @@ class Environment:
 
             distance = np.sqrt(dx_norm**2 + dy_norm**2)
 
-            # Dirección hacia el asteroide (ángulo matemático estándar)
             angle_to_asteroid = math.atan2(dy, dx)
-
-            # Dirección real de la nave
+            
             angle_rad = math.radians(ship.angle)
             ship_dir_x = -math.sin(angle_rad)
             ship_dir_y = -math.cos(angle_rad)
             ship_angle = math.atan2(ship_dir_y, ship_dir_x)
 
-            # Diferencia angular mínima
             raw_diff = abs(angle_to_asteroid - ship_angle)
             angle_diff = min(raw_diff, 2*math.pi - raw_diff)
 
-            # Normalizar dif. angular a 0–1
             angle_diff_norm = angle_diff / math.pi
 
         else:
             dx_norm = dy_norm = 0
             distance = 1
             angle_to_asteroid = 0
-            angle_diff_norm = 1   # "máximo desalineado"
+            angle_diff_norm = 1 
 
         # --- Enemy (saucer) data ---
         if self.game.saucer is not None:
@@ -156,35 +146,10 @@ class Environment:
 
     def compute_reward(self):
         ship = self.game.ship
-        reward = 0.1  # reward por sobrevivir
+        reward = 0.1  # reward to survival
 
-        # ============================
-        # 1) MOVIMIENTO REGULAR / RARO
-        # ============================
-
-        angle_change = abs(ship.angle - self.prev_angle)
-        dvx = abs(ship.heading.x - self.prev_vx)
-        dvy = abs(ship.heading.y - self.prev_vy)
-
-        # --- recto demasiado tiempo ---
-        """
-        if angle_change < 1.0 and dvx < 0.01 and dvy < 0.01:
-            self.straight_frames += 1
-        else:
-            self.straight_frames = 0
-
-        if self.straight_frames > 60:
-            reward -= 0.03  # ligera penalización
-        """
-        # --- movimiento raro (cambios bruscos) ---
-        """
-        movement_change = angle_change * 0.005 + (dvx + dvy) * 0.5
-        if movement_change > 1.0:
-            reward -= movement_change  # penalización proporcional
-        """
-        # ==========================================
-        # 2) CALCULAR ALINEACIÓN ANGULAR REAL 
-        # ==========================================
+   
+        # Calculate actual angular alignment
 
         nearest = self.get_nearest_asteroid(ship.position.x, ship.position.y)
         if nearest:
@@ -194,68 +159,38 @@ class Environment:
             angle_to_asteroid = math.atan2(dy, dx)
             ship_angle_rad = math.radians(ship.angle)
 
-            # error angular absoluto en [-pi, +pi]
             angle_diff = abs((angle_to_asteroid - ship_angle_rad + math.pi) % (2*math.pi) - math.pi)
 
-            # normalizar 0..1
             angle_diff_norm = min(angle_diff / math.pi, 1.0)
 
-            # -------------------------------------------------
-            #  REWARD 2.1: ALINEACIÓN (apuntar bien = recompensa)
-            # -------------------------------------------------
-            reward += (1 - angle_diff_norm) * 0.5    # máx +0.5
 
-            # -------------------------------------------------
-            #  REWARD 2.2: DISPARO BIEN ALINEADO
-            # -------------------------------------------------
+            reward += (1 - angle_diff_norm) * 0.5    # max +0.5
+
             if self.last_action == 4 and angle_diff_norm < 0.05:
-                reward += 5   # fuerte refuerzo de disparo correcto
+                reward += 5   # Nice shoot
 
-            # -------------------------------------------------
-            #  PENALTY 2.3: DISPARO INÚTIL (mal alineado)
-            # -------------------------------------------------
             if self.last_action == 4 and angle_diff_norm > 0.2:
-                reward -= 3
+                reward -= 3 # Fail shoot
 
-            # ------------------------------------------
-            # PENALTY 2.4: No alinearse nunca
-            # ------------------------------------------
+   
             if angle_diff_norm > 0.50:
                 reward -= 0.05
 
-            # ========================
-            # 3) PENALIDAD POR DISTANCIA
-            # ========================
             dist = math.sqrt(dx**2 + dy**2)
-            if dist < 100:    # demasiado cerca de un asteroide
+            if dist < 100:    # Near to as asteroid
                 reward -= 0.5
 
-        # ==========================
-        # 4) ASTEROIDES DESTRUIDOS
-        # ==========================
         reward += ship.bulletHit * 20
 
-        # ==========================
-        # 5) PENALIZAR SPAM DE DISPAROS
-        # ==========================
         reward -= ship.bulletShot * 0.2
 
-        # ==========================
-        # 6) MUERTE
-        # ==========================
         if self.game.gameState == 'exploding':
             reward -= 40
 
-        # ==========================
-        # 7) GUARDAR ESTADO PREVIO
-        # ==========================
         self.prev_angle = ship.angle
         self.prev_vx = ship.heading.x
         self.prev_vy = ship.heading.y
 
-        # ==========================
-        # 8) RESET DE CONTADORES
-        # ==========================
         ship.bulletHit = 0
         ship.bulletShot = 0
 

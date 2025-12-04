@@ -61,10 +61,10 @@ class Asteroids():
         else:
             # without windows (simulator)
             pygame.display.init()
-            self.stage = type('StageMock', (), {})()  # objeto vacío
+            self.stage = type('StageMock', (), {})()
             self.stage.width = 1200
             self.stage.height = 630
-            self.stage.screen = pygame.Surface((1, 1))  # superficie mínima
+            self.stage.screen = pygame.Surface((1, 1))
             self.stage.spriteList = []
             self.stage.addSprite = lambda *args, **kwargs: None
             self.stage.removeSprite = lambda *args, **kwargs: None
@@ -163,8 +163,6 @@ class Asteroids():
             self.rockList.append(newRock)
 
     def update_one_frame(self):
-        """Run the logic for one frame."""
-        # everything that happens *inside* the while True* once per frame
         self.secondsCount += 1
         self.input(pygame.event.get())
         self.stage.screen.fill((10, 10, 10))
@@ -189,9 +187,6 @@ class Asteroids():
         else:
             self.displayText()
             
-        #if hasattr(self, "current_model") and hasattr(self, "current_state"):
-            # draw_dqn(self.stage.screen, self.current_model, self.current_state)
-
         pygame.display.flip()
 
     def playing(self):
@@ -330,11 +325,10 @@ class Asteroids():
         else:
             self.ship.thrustJet.accelerating = False
 
-    # Check for ship hitting the rocks etc.
 
+    # Check for ship hitting the rocks etc.
     def checkCollisions(self):
 
-        # Ship bullet hit rock?
         newRocks = []
         shipHit, saucerHit = False, False
 
@@ -408,9 +402,6 @@ class Asteroids():
         if shipHit:
             self.killShip()
 
-            # comment in to pause on collision
-            #self.paused = True
-
     def killShip(self):
         # stopSound("thrust")
         # playSound("explode2")
@@ -458,16 +449,12 @@ class Asteroids():
             self.addLife(self.lives)
             
     def draw_line_to_enemy_ship(self):
-        """Dibuja una línea desde la nave hacia la nave enemiga."""
+
         if not self.ship or not self.saucer:
-            return  # no hay nave o asteroides
+            return
 
-        # Obtener la nave y el asteroide más cercano
         ship_pos = (int(self.ship.position.x), int(self.ship.position.y))
-
         enemy_pos = (int(self.saucer.position.x), int(self.saucer.position.y))
-
-        # Dibujar la línea (color: rojo brillante, grosor: 2)
         pygame.draw.line(self.stage.screen, (255, 0, 0), ship_pos, enemy_pos, 2)
 
     def debug_draw(self):
@@ -478,7 +465,6 @@ class Asteroids():
         surface = self.stage.screen
         cx, cy = int(ship.position.x), int(ship.position.y)
 
-        # --- Línea hacia el asteroide más cercano ---
         if self.rockList:
             nearest = min(self.rockList,
                         key=lambda r: (r.position.x - ship.position.x)**2 +
@@ -487,19 +473,16 @@ class Asteroids():
             
             nx, ny = int(nearest.position.x), int(nearest.position.y)
 
-            # color según alineación (verde = bien, rojo = mal)
             angle_color = self.compute_angle_color(self.last_angle_diff)
             
             pygame.draw.line(surface, angle_color, (cx, cy), (nx, ny), 3)
 
-        # --- Línea de apuntado de la nave ---
         angle_rad = -math.radians(ship.angle)
         length = 100
         ax = cx + length * math.sin(angle_rad)
         ay = cy - length * math.cos(angle_rad)
         pygame.draw.line(surface, (0, 180, 255), (cx, cy), (ax, ay), 2)
 
-        # --- Campo de visión (opcional) ---
         fov = math.radians(30)
         left_angle = angle_rad - fov
         right_angle = angle_rad + fov
@@ -525,7 +508,10 @@ class Asteroids():
         hud.blit(text2, (10, 40))
         hud.blit(text3, (10, 70))
 
-        surface.blit(hud, (10, 10))
+        hud_x = surface.get_width() - hud.get_width() - 10
+        hud_y = 10
+
+        surface.blit(hud, (hud_x, hud_y))
 
     def compute_angle_color(self, angle_diff):
         t = min(angle_diff / math.pi, 1.0)

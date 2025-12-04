@@ -4,7 +4,7 @@ import torch.optim as optim
 import random
 import numpy as np
 from collections import deque
-from DQN_model import QNetwork   # tu red neuronal
+from DQN_model import QNetwork
 from ReplayBuffer import ReplayBuffer
 
 class DQN_agent:
@@ -12,11 +12,11 @@ class DQN_agent:
         self.state_size = state_size
         self.action_size = action_size
 
-        # Redes
+        # Networks
         self.model = QNetwork(state_size, action_size)
         self.target_model = QNetwork(state_size, action_size)
 
-        # Copia inicial de pesos (hard update)
+        # Hard update
         self.target_model.load_state_dict(self.model.state_dict())
         self.target_model.eval()
 
@@ -27,7 +27,7 @@ class DQN_agent:
         self.memory = deque(maxlen=50000)
         self.batch_size = 128
 
-        # Parámetros DQN
+        # Parameters DQN
         self.gamma = 0.99
         self.epsilon = 0.995
         self.epsilon_min = 0.35
@@ -66,20 +66,20 @@ class DQN_agent:
         with torch.no_grad():
             target_q = rewards + (1 - dones) * self.gamma * torch.max(self.target_model(next_states), dim=1, keepdim=True)[0]
 
-        # loss
+        # Loss
         loss = nn.MSELoss()(q_vals, target_q)
 
-        # step
+        # Step
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
 
-        # actualización suave (soft update)
+        # Soft update
         tau = 0.01
         for target_param, local_param in zip(self.target_model.parameters(), self.model.parameters()):
             target_param.data.copy_(tau * local_param.data + (1.0 - tau) * target_param.data)
 
-        # decaimiento de epsilon
+        # Epsilon decay
         self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
 
     def update_epsilon(self):

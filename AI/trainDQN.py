@@ -13,7 +13,6 @@ env = Environment()
 
 agent = DQN_agent(INPUT_SIZE, ACTION_SIZE)
 
-# Cargar modelo si existe
 try:
     checkpoint = torch.load("dqn_model.pth")
     agent.model.load_state_dict(checkpoint["model_state"])
@@ -48,7 +47,6 @@ for episode in range(EPISODES):
 
     print(f"Episode {episode}  | Reward: {total_reward:.2f} | Epsilon: {agent.epsilon:.3f}")
 
-    # guardar mejor modelo
     if episode % 20 == 0:
         torch.save({
             "model_state": agent.model.state_dict(),
